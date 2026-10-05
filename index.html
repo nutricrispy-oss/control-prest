@@ -1,0 +1,27 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14532d"><link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png"><title>CRz Prest</title>
+<style>
+:root{--g:#14532d;--g2:#166534;--bg:#f3f6f4;--c:#fff;--t:#14231a;--m:#6b7a70;--b:#dfe7e2;--r:#dc2626;--o:#ea580c;--y:#ca8a04}
+@media(prefers-color-scheme:dark){:root:not([data-t=l]){--bg:#0d1510;--c:#16221a;--t:#e8f0ea;--m:#93a398;--b:#243329}}
+:root[data-t=d]{--bg:#0d1510;--c:#16221a;--t:#e8f0ea;--m:#93a398;--b:#243329}
+*{box-sizing:border-box}body{margin:0;font:16px system-ui,sans-serif;background:var(--bg);color:var(--t);padding-bottom:84px}
+header{background:var(--g);color:#fff;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));font-weight:700;font-size:18px;position:sticky;top:0;z-index:5}
+main{padding:12px;max-width:640px;margin:auto}
+.card{background:var(--c);border:1px solid var(--b);border-radius:16px;padding:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.k{font-size:12px;color:var(--m)}.v{font-size:18px;font-weight:700}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--b)}.row:last-child{border:0}
+button,.btn{background:var(--g2);color:#fff;border:0;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600;cursor:pointer}
+button.s{background:var(--b);color:var(--t)}button.r{background:var(--r)}button.sm{padding:8px 12px;font-size:13px}button.w{width:100%}
+input,select,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--b);background:var(--c);color:var(--t);font-size:16px;margin:4px 0 10px}
+label{font-size:13px;color:var(--m)}label.ck{display:flex;gap:8px;align-items:center;color:var(--t);font-size:15px}label.ck input{width:auto;margin:0}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--c);border-top:1px solid var(--b);padding-bottom:env(safe-area-inset-bottom)}
+nav a{flex:1;text-align:center;padding:10px 0;font-size:11px;color:var(--m);cursor:pointer}nav a.on{color:var(--g2);font-weight:700}nav b{display:block;font-size:20px}
+.d{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+#m{position:fixed;inset:0;background:#0009;display:none;align-items:flex-end;z-index:20}#m>div{background:var(--bg);width:100%;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:16px;max-width:640px;margin:auto}
+.pos{color:var(--g2)}.neg{color:var(--r)}h3{margin:6px 0 10px}
+#fab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;font-size:30px;padding:0;box-shadow:0 4px 12px #0005;z-index:6}@media print{body>*:not(#m){display:none!important}#m{position:static!important;display:block!important;background:none!important}#m button{display:none}}
+</style></head><body>
+<header id="h">CRz Prest</header><main id="main"></main><nav id="nav"></nav><button id="fab" onclick="quick()">+</button><div id="m"></div>
+<script src="app.js"></script></body></html>
