@@ -48,7 +48,7 @@ function render(){
 function vInicio(){const h=hoy(),mes=h.slice(0,7),act=C.prestamos.filter(p=>p.estado==='activo');
  const all=C.cuotas.filter(c=>c.estado==='pendiente'),dueHoy=all.filter(c=>c.fechaVencimiento===h),vc=all.filter(venc);
  const pag=C.cuotas.filter(c=>c.estado==='pagada'),cm=pag.filter(c=>(c.fechaPago||'').slice(0,7)===mes),ch=pag.filter(c=>(c.fechaPago||'').slice(0,10)===h);
- const sum=a=>a.reduce((s,c)=>s+c.importe,0),K=(k,v,cl='')=>`<div class="card"><div class="k">${k}</div><div class="v ${cl}">${v}</div></div>`;
+ const sum=a=>a.reduce((s,c)=>s+c.importe,0),K=(k,v,cl='')=>(cfg('hid')||[]).includes(k)?'':`<div class="card"><div class="k">${k}</div><div class="v ${cl}">${v}</div></div>`;
  const fila=c=>{const p=C.prestamos.find(x=>x.id===c.prestamoId);return`<div class="row"><div><b>${esc(cli(p.clienteId).nombre)}</b><br><span class="k">Cuota ${c.numero}/${p.cuotas} · ${dmy(c.fechaVencimiento)}</span></div><div style="text-align:right"><b>${fmt(c.importe)}</b><br><button class="sm" onclick="cobrar(${c.id})">COBRAR</button></div></div>`};
  return`<div class="grid">${K('Clientes activos',C.clientes.filter(c=>c.estado==='activo').length)}${K('Préstamos activos',act.length)}
  ${K('Capital prestado',fmt(act.reduce((s,p)=>s+p.monto,0)))}${K('Pendiente por cobrar',fmt(sum(all)))}
@@ -133,7 +133,7 @@ function vPrestamos(){const f=window.F||'todos',l=C.prestamos.filter(p=>f==='tod
 function det(id){const p=C.prestamos.find(x=>x.id===id),r=resumen(p),q=cuP(p);
  modal(`<h3>Préstamo #${id} · ${esc(cli(p.clienteId).nombre)}</h3><div class="card">Capital ${fmt(p.monto)} · Interés ${p.interes}% (${fmt(p.montoInteres)})<br>Total ${fmt(p.total)} · ${p.cuotas} cuotas de ${fmt(p.importeCuota)}<br>${dmy(p.primerVencimiento)} → ${dmy(p.ultimoVencimiento)} · <b>${p.estado}</b><br>Pagado <b class="pos">${fmt(r.pagado)}</b> · Pendiente <b>${fmt(r.pend)}</b><br>Restantes ${r.rest} · Vencidas ${r.venc}</div>
  <div class="card">${q.map(c=>{const e=c.estado==='pagada'?'🟢':c.estado==='anulada'?'⚪':venc(c)?'🔴':'🟠';return`<div class="row"><span>${e} ${c.numero}. ${dmy(c.fechaVencimiento)}<br><span class="k">${c.estado==='pagada'?dmy(c.fechaPago.slice(0,10))+' · '+c.metodoPago:''}</span></span><span>${fmt(c.importe)} ${c.estado==='pendiente'&&p.estado==='activo'?`<button class="sm" onclick="cobrar(${c.id})">Cobrar</button>`:c.estado==='pagada'?`<button class="sm s" onclick="revertir(${c.id})">Revertir</button>`:''}</span></div>`}).join('')}</div>
- <button class="w" onclick="waPrest(${id})">Enviar WhatsApp</button>${p.estado==='activo'?`<button class="w s" style="margin-top:8px" onclick="renovar(${id})">Renovar préstamo</button>`:''}`)}
+ <button class="w" onclick="waPrest(${id})">Enviar WhatsApp</button><button class="w s" style="margin-top:8px" onclick="pdfPrest(${id})">PDF del préstamo</button>${p.estado==='activo'?`<button class="w s" style="margin-top:8px" onclick="renovar(${id})">Renovar préstamo</button>`:''}`)}
 async function renovar(id){const p=C.prestamos.find(x=>x.id===id),r=resumen(p);
  const v=prompt(`Pendiente actual: ${fmt(r.pend)}\nCapital pendiente aprox.: ${fmt(Math.round(r.pend*p.monto/p.total))}\n\n¿Qué importe cancela el cliente? (Gs.)`,r.pend);
  if(v===null||isNaN(+v))return;const imp=Math.max(0,Math.round(+v));
@@ -144,7 +144,7 @@ async function renovar(id){const p=C.prestamos.find(x=>x.id===id),r=resumen(p);
 const q=cuP;
 // ===== WhatsApp =====
 function waPrest(id){const p=C.prestamos.find(x=>x.id===id),c=cli(p.clienteId),r=resumen(p);
- const t=`Hola ${c.nombre.split(' ')[0]}, te enviamos el detalle de tu préstamo.\n\n💰 Monto otorgado: ${fmt(p.monto)}\n📈 Interés: ${p.interes} %\n💵 Total a devolver: ${fmt(p.total)}\n📅 Primer vencimiento: ${dmy(p.primerVencimiento)}\n📅 Último vencimiento: ${dmy(p.ultimoVencimiento)}\n💳 Cuotas: ${p.cuotas}\n💰 Valor de cuota: ${fmt(p.importeCuota)}\n\n✅ Cuotas pagadas: ${r.pagadas}\n⏳ Cuotas restantes: ${r.rest}\n💵 Saldo pendiente: ${fmt(r.pend)}\n\nGracias.`;
+ const t=waTxt(p,c,r);
  modal(`<h3>WhatsApp</h3><label>Número</label><select id="wn"><option value="${esc(c.whatsapp||c.telefono)}">Cliente: ${esc(c.whatsapp||c.telefono)}</option>${c.telefonoReferencia?`<option value="${esc(c.telefonoReferencia)}">Referencia: ${esc(c.telefonoReferencia)}</option>`:''}</select>
  <label>Mensaje (editable)</label><textarea id="wt" rows="12">${esc(t)}</textarea><button class="w" onclick="wa(g('wn'),g('wt'))">Abrir WhatsApp</button>`)}
 function wa(num,txt){let n=String(num).replace(/\D/g,'');if(n.startsWith('0'))n='595'+n.slice(1);window.open('https://wa.me/'+n+'?text='+encodeURIComponent(txt),'_blank')}
@@ -164,6 +164,10 @@ function vMas(){const fe=[...C.feriados].sort((a,b)=>a.fecha.localeCompare(b.fec
  <label style="display:block;margin-top:10px">Restaurar copia</label><input type="file" accept=".json" onchange="importar(this.files[0])"></div>
  <div class="card"><h3>Seguridad</h3><button class="w" onclick="setPin()">${cfg('pin')?'Cambiar':'Crear'} PIN (6-8 dígitos)</button></div>
  <div class="card"><h3>Apariencia</h3><div class="grid"><button class="s" onclick="tema('l')">Claro</button><button class="s" onclick="tema('d')">Oscuro</button></div></div>
+ <div class="card"><h3>Tarjetas del inicio</h3>${HL.map(l=>`<label class="ck"><input type="checkbox" ${(cfg('hid')||[]).includes(l)?'':'checked'} onchange="tog('${l}')">${l}</label>`).join('')}</div>
+ <div class="card"><h3>Mensaje de WhatsApp</h3><p class="k">Variables: {nombre} {monto} {interes} {total} {primer} {ultimo} {cuotas} {valor} {pagadas} {restantes} {saldo}</p><textarea id="wat" rows="10">${esc(cfg('wat')||DEFWA)}</textarea><div class="grid"><button onclick="saveWat()">Guardar</button><button class="s" onclick="resetWat()">Restablecer</button></div></div>
+ <div class="card"><h3>Recibos</h3><label class="ck"><input type="checkbox" ${cfg('term')?'checked':''} onchange="tglTerm()">Formato térmico 58 mm</label></div>
+ <div class="card"><h3>Auditoría (últimos 25)</h3>${[...C.audit].reverse().slice(0,25).map(x=>`<div class="row"><span>${esc(x.accion)}<br><span class="k">${esc(x.entidad)} #${x.entidadId}</span></span><span class="k">${new Date(x.fecha).toLocaleString()}</span></div>`).join('')||'<p class="k">Sin registros.</p>'}</div>
  <div class="card"><h3>Feriados / no cobrables</h3><input id="ff" type="date"><input id="fd" placeholder="Descripción"><button class="w" onclick="addFer()">Agregar</button>
  ${fe.map(f=>`<div class="row"><span>${dmy(f.fecha)} ${esc(f.descripcion)}</span><button class="sm r" onclick="delFer(${f.id})">✕</button></div>`).join('')}</div>`}
 async function addFer(){if(!g('ff'))return;await DB.put('feriados',{fecha:g('ff'),descripcion:g('fd')});refresh()}
@@ -200,22 +204,36 @@ function dia(k){const l=C.cuotas.filter(c=>c.estado==='pendiente'&&c.fechaVencim
 function setNom(){const n=prompt('Nombre del prestamista (aparece en recibos):',cfg('nombre')||'');if(n!==null)DB.put('config',{id:'nombre',v:n}).then(refresh)}
 function recibo(id){const c=C.cuotas.find(x=>x.id===id),p=C.prestamos.find(x=>x.id===c.prestamoId),cl=cli(p.clienteId),r=resumen(p),no='R-'+String(id).padStart(6,'0');
  window.RT=`*CRz Prest - Recibo ${no}*\nCliente: ${cl.nombre}\nCI: ${cl.cedula}\nPréstamo #${p.id} - Cuota ${c.numero}/${p.cuotas}\nFecha de pago: ${dmy((c.fechaPago||'').slice(0,10))}\nImporte: ${fmt(c.importe)}\nSaldo pendiente: ${fmt(r.pend)}\nCuotas restantes: ${r.rest}`;
- modal(`<div id="rc" style="text-align:center"><h3>CRz Prest</h3><p class="k">${esc(cfg('nombre')||'')}</p><div class="card" style="text-align:left">Comprobante: <b>${no}</b><br>Cliente: ${esc(cl.nombre)}<br>Cédula: ${esc(cl.cedula)}<br>Préstamo #${p.id} · Cuota ${c.numero}/${p.cuotas}<br>Fecha de pago: ${dmy((c.fechaPago||'').slice(0,10))}<br>Método: ${esc(c.metodoPago)}<br><b>Importe: ${fmt(c.importe)}</b><br>Saldo pendiente: ${fmt(r.pend)}<br>Cuotas restantes: ${r.rest}</div></div>
+ modal(`<div id="rc" style="text-align:center${cfg('term')?';width:58mm;font-size:11px;margin:auto':''}"><h3>CRz Prest</h3><p class="k">${esc(cfg('nombre')||'')}</p><div class="card" style="text-align:left">Comprobante: <b>${no}</b><br>Cliente: ${esc(cl.nombre)}<br>Cédula: ${esc(cl.cedula)}<br>Préstamo #${p.id} · Cuota ${c.numero}/${p.cuotas}<br>Fecha de pago: ${dmy((c.fechaPago||'').slice(0,10))}<br>Método: ${esc(c.metodoPago)}<br><b>Importe: ${fmt(c.importe)}</b><br>Saldo pendiente: ${fmt(r.pend)}<br>Cuotas restantes: ${r.rest}</div></div>
  <button class="w" onclick="window.print()">Imprimir / Guardar PDF</button><button class="w s" style="margin-top:8px" onclick="wa('${esc(cl.whatsapp||cl.telefono)}',window.RT)">Compartir por WhatsApp</button><button class="w s" style="margin-top:8px" onclick="close()">Cerrar</button>`)}
 // ===== Reportes =====
 function vRep(){const d=window.RD||hoy().slice(0,8)+'01',h=window.RH||hoy(),en=x=>x>=d&&x<=h;
- const pg=C.cuotas.filter(c=>c.estado==='pagada'&&en((c.fechaPago||'').slice(0,10))),cob=pg.reduce((s,c)=>s+c.importe,0);
+ const pg=C.cuotas.filter(c=>c.estado==='pagada'&&en((c.fechaPago||'').slice(0,10))&&okc(c)),cob=pg.reduce((s,c)=>s+c.importe,0);
  const int=pg.reduce((s,c)=>{const p=C.prestamos.find(x=>x.id===c.prestamoId);return s+Math.round(c.importe*p.montoInteres/p.total)},0);
- const ot=C.prestamos.filter(p=>en(p.fechaOtorgamiento)),cj=C.caja.filter(m=>!m.anulado&&en(m.fecha)),sm=cat=>cj.filter(m=>m.categoria===cat).reduce((s,m)=>s+m.importe,0);
+ const ot=C.prestamos.filter(p=>en(p.fechaOtorgamiento)&&okp(p)),cj=C.caja.filter(m=>!m.anulado&&en(m.fecha)),sm=cat=>cj.filter(m=>m.categoria===cat).reduce((s,m)=>s+m.importe,0);
  const dias=[...Array(7)].map((_,i)=>iso(addD(new Date(),i-6))),vals=dias.map(x=>C.cuotas.filter(c=>c.estado==='pagada'&&(c.fechaPago||'').slice(0,10)===x).reduce((s,c)=>s+c.importe,0)),mx=Math.max(...vals,1);
  const R=(k,v)=>`<div class="row"><span>${k}</span><b>${v}</b></div>`;
- return`<div class="card"><label>Desde</label><input type="date" id="rd" value="${d}" onchange="window.RD=this.value;render()"><label>Hasta</label><input type="date" id="rh" value="${h}" onchange="window.RH=this.value;render()">
+ return`<div class="card"><label>Desde</label><input type="date" id="rd" value="${d}" onchange="window.RD=this.value;render()"><label>Hasta</label><input type="date" id="rh" value="${h}" onchange="window.RH=this.value;render()"><label>Cliente</label><select onchange="window.RC=this.value;render()"><option value="">Todos</option>${C.clientes.map(c=>`<option value="${c.id}" ${+window.RC===c.id?'selected':''}>${esc(c.nombre)}</option>`)}</select><label>Modalidad</label><select onchange="window.RM=this.value;render()">${['','diario','semanal','quincenal','mensual'].map(m=>`<option value="${m}" ${window.RM===m?'selected':''}>${m||'Todas'}</option>`)}</select>
  ${R('Cobros ('+pg.length+' cuotas)',fmt(cob))}${R('Intereses cobrados',fmt(int))}${R('Préstamos otorgados ('+ot.length+')',fmt(ot.reduce((s,p)=>s+p.monto,0)))}${R('Renovaciones (cancelaciones)',fmt(sm('renovación')))}${R('Egresos (gastos)',fmt(sm('gasto')))}${R('Extracciones',fmt(sm('extracción')))}
  <button class="w" style="margin-top:10px" onclick="csv()">Exportar cobros CSV</button></div>
  <div class="card"><h3>Cobros últimos 7 días</h3><div style="display:flex;gap:6px;align-items:flex-end;height:110px">${vals.map((v,i)=>`<div style="flex:1;text-align:center"><div style="background:var(--g2);height:${Math.round(v/mx*80)}px;border-radius:4px"></div><span class="k">${dias[i].slice(8)}</span></div>`).join('')}</div></div>`}
 function csv(){const d=window.RD||hoy().slice(0,8)+'01',h=window.RH||hoy(),rows=[['fecha','cliente','prestamo','cuota','importe','metodo']];
- C.cuotas.filter(c=>c.estado==='pagada'&&c.fechaPago.slice(0,10)>=d&&c.fechaPago.slice(0,10)<=h).forEach(c=>{const p=C.prestamos.find(x=>x.id===c.prestamoId);rows.push([c.fechaPago.slice(0,10),'"'+cli(p.clienteId).nombre+'"',p.id,c.numero,c.importe,c.metodoPago])});
+ C.cuotas.filter(c=>c.estado==='pagada'&&c.fechaPago.slice(0,10)>=d&&c.fechaPago.slice(0,10)<=h&&okc(c)).forEach(c=>{const p=C.prestamos.find(x=>x.id===c.prestamoId);rows.push([c.fechaPago.slice(0,10),'"'+cli(p.clienteId).nombre+'"',p.id,c.numero,c.importe,c.metodoPago])});
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'}));a.download='cobros-'+d+'_'+h+'.csv';a.click()}
+
+// ===== Ajustes finales =====
+const HL=['Clientes activos','Préstamos activos','Capital prestado','Pendiente por cobrar','Cobros de hoy','Cobros del mes','Cuotas vencidas','Saldo en caja'];
+const okp=p=>(!window.RC||p.clienteId==window.RC)&&(!window.RM||p.modalidad===window.RM),okc=c=>okp(C.prestamos.find(x=>x.id===c.prestamoId));
+const DEFWA='Hola {nombre}, te enviamos el detalle de tu préstamo.\n\n💰 Monto otorgado: {monto}\n📈 Interés: {interes} %\n💵 Total a devolver: {total}\n📅 Primer vencimiento: {primer}\n📅 Último vencimiento: {ultimo}\n💳 Cuotas: {cuotas}\n💰 Valor de cuota: {valor}\n\n✅ Cuotas pagadas: {pagadas}\n⏳ Cuotas restantes: {restantes}\n💵 Saldo pendiente: {saldo}\n\nGracias.';
+function waTxt(p,c,r){const m={nombre:c.nombre.split(' ')[0],monto:fmt(p.monto),interes:p.interes,total:fmt(p.total),primer:dmy(p.primerVencimiento),ultimo:dmy(p.ultimoVencimiento),cuotas:p.cuotas,valor:fmt(p.importeCuota),pagadas:r.pagadas,restantes:r.rest,saldo:fmt(r.pend)};return(cfg('wat')||DEFWA).replace(/\{(\w+)\}/g,(x,k)=>k in m?m[k]:x)}
+const saveWat=async()=>{await DB.put('config',{id:'wat',v:g('wat')});alert('Mensaje guardado')};
+const resetWat=async()=>{await DB.run('config','readwrite',o=>o.delete('wat'));refresh()};
+async function tog(l){const h=[...(cfg('hid')||[])],i=h.indexOf(l);i<0?h.push(l):h.splice(i,1);await DB.put('config',{id:'hid',v:h});refresh()}
+const tglTerm=async()=>{await DB.put('config',{id:'term',v:!cfg('term')});refresh()};
+function pdfPrest(id){const p=C.prestamos.find(x=>x.id===id),c=cli(p.clienteId),r=resumen(p);
+ modal(`<div id="rc"><h3 style="text-align:center">CRz Prest — Préstamo #${id}</h3><p class="k">${esc(cfg('nombre')||'')}</p><p>Cliente: <b>${esc(c.nombre)}</b> · CI ${esc(c.cedula)} · ${esc(c.telefono)}<br>Capital ${fmt(p.monto)} · Interés ${p.interes}% (${fmt(p.montoInteres)}) · Total ${fmt(p.total)}<br>${p.cuotas} cuotas ${p.modalidad}s de ${fmt(p.importeCuota)} · ${dmy(p.primerVencimiento)} → ${dmy(p.ultimoVencimiento)}<br>Estado: <b>${p.estado}</b> · Pagado ${fmt(r.pagado)} · Saldo ${fmt(r.pend)}</p>
+ <table style="width:100%;font-size:13px;border-collapse:collapse"><tr><th align="left">Nº</th><th align="left">Vence</th><th align="right">Importe</th><th align="left">Estado</th><th align="left">Pago</th></tr>${cuP(p).map(x=>`<tr style="border-top:1px solid var(--b)"><td>${x.numero}</td><td>${dmy(x.fechaVencimiento)}</td><td align="right">${fmt(x.importe)}</td><td>${venc(x)?'vencida':x.estado}</td><td>${x.fechaPago?dmy(x.fechaPago.slice(0,10))+' '+esc(x.metodoPago):''}</td></tr>`).join('')}</table></div>
+ <button class="w" style="margin-top:10px" onclick="window.print()">Imprimir / Guardar PDF</button><button class="w s" style="margin-top:8px" onclick="det(${id})">Volver</button>`)}
 let idle;const rst=()=>{clearTimeout(idle);idle=setTimeout(lock,120000)};['click','touchstart','keydown'].forEach(e=>addEventListener(e,rst));
 // ===== Inicio =====
 (async()=>{const t=localStorage.getItem('t');if(t)document.documentElement.dataset.t=t;
