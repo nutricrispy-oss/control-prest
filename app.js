@@ -41,7 +41,7 @@ function go(v,x){V=v;window.X=x;render()}
 async function refresh(){await load();render()}
 function render(){
  $('#nav').innerHTML=NAV.map(n=>`<a class="${V===n[0]?'on':''}" onclick="go('${n[0]}')"><b>${n[1]}</b>${n[2]}</a>`).join('');
- $('#h').innerHTML=`<span onclick="go('mas')" style="float:right;cursor:pointer">☰</span>CRz Prest`;
+ $('#h').innerHTML=`<span onclick="go('mas')" style="float:right;cursor:pointer">☰</span>Control Prest by CR`;
  $('#main').innerHTML=({calendario:vCal,reportes:vRep,inicio:vInicio,clientes:vClientes,nuevo:vNuevo,prestamos:vPrestamos,caja:vCaja,mas:vMas}[V])();
  if(V==='nuevo')prev()}
 // ===== Inicio =====
@@ -50,7 +50,7 @@ function vInicio(){const h=hoy(),mes=h.slice(0,7),act=C.prestamos.filter(p=>p.es
  const pag=C.cuotas.filter(c=>c.estado==='pagada'),cm=pag.filter(c=>(c.fechaPago||'').slice(0,7)===mes),ch=pag.filter(c=>(c.fechaPago||'').slice(0,10)===h);
  const sum=a=>a.reduce((s,c)=>s+c.importe,0),K=(k,v,cl='')=>(cfg('hid')||[]).includes(k)?'':`<div class="card"><div class="k">${k}</div><div class="v ${cl}">${v}</div></div>`;
  const fila=c=>{const p=C.prestamos.find(x=>x.id===c.prestamoId);return`<div class="row"><div><b>${esc(cli(p.clienteId).nombre)}</b><br><span class="k">Cuota ${c.numero}/${p.cuotas} · ${dmy(c.fechaVencimiento)}</span></div><div style="text-align:right"><b>${fmt(c.importe)}</b><br><button class="sm" onclick="cobrar(${c.id})">COBRAR</button></div></div>`};
- return`<div class="grid">${K('Clientes activos',C.clientes.filter(c=>c.estado==='activo').length)}${K('Préstamos activos',act.length)}
+ return bk()+`<div class="grid">${K('Clientes activos',C.clientes.filter(c=>c.estado==='activo').length)}${K('Préstamos activos',act.length)}
  ${K('Capital prestado',fmt(act.reduce((s,p)=>s+p.monto,0)))}${K('Pendiente por cobrar',fmt(sum(all)))}
  ${K('Cobros de hoy',fmt(sum(ch)))}${K('Cobros del mes',fmt(sum(cm)))}
  ${K('Cuotas vencidas',vc.length+' · '+fmt(sum(vc)),vc.length?'neg':'')}${K('Saldo en caja',fmt(saldoCaja()),saldoCaja()<0?'neg':'pos')}</div>
@@ -163,6 +163,9 @@ function vMas(){const fe=[...C.feriados].sort((a,b)=>a.fecha.localeCompare(b.fec
  return`<div class="grid"><button onclick="go('calendario')">📅 Calendario</button><button onclick="go('reportes')">📊 Reportes</button></div><button class="w s" style="margin:10px 0" onclick="setNom()">Nombre del prestamista: ${esc(cfg('nombre')||'(sin definir)')}</button><div class="card"><h3>Copia de seguridad</h3><p class="k">Última: ${cfg('ultimoBackup')?new Date(cfg('ultimoBackup')).toLocaleString():'nunca'}</p><button class="w" onclick="exportar()">Exportar copia (JSON)</button>
  <label style="display:block;margin-top:10px">Restaurar copia</label><input type="file" accept=".json" onchange="importar(this.files[0])"></div>
  <div class="card"><h3>Seguridad</h3><button class="w" onclick="setPin()">${cfg('pin')?'Cambiar':'Crear'} PIN (6-8 dígitos)</button></div>
+ <div class="card"><h3>Biometría</h3><p class="k">Desbloqueo con la huella o el rostro del teléfono. El PIN sigue disponible.</p>${cfg('bio')?'<button class="w s" onclick="bioOff()">Desactivar huella</button>':'<button class="w" onclick="bioOn()">Activar huella</button>'}</div>
+ <div class="card"><h3>Respaldo en la nube</h3><p class="k">Google Drive · última copia: ${cfg('ultimoNube')?new Date(cfg('ultimoNube')).toLocaleString():'nunca'}</p><label>Client ID de Google</label><input id="gcid" value="${esc(cfg('gcid')||'')}" placeholder="xxxx.apps.googleusercontent.com"><button class="w" onclick="saveG()">Guardar y respaldar ahora en Drive</button>
+ <label class="ck" style="margin:10px 0"><input type="checkbox" ${cfg('auto')?'checked':''} onchange="tglAuto()">Respaldo automático diario al abrir la app</label><button class="w s" onclick="compartirBackup()">Enviar copia a otra nube (Terabox, Dropbox…)</button></div>
  <div class="card"><h3>Apariencia</h3><div class="grid"><button class="s" onclick="tema('l')">Claro</button><button class="s" onclick="tema('d')">Oscuro</button></div></div>
  <div class="card"><h3>Tarjetas del inicio</h3>${HL.map(l=>`<label class="ck"><input type="checkbox" ${(cfg('hid')||[]).includes(l)?'':'checked'} onchange="tog('${l}')">${l}</label>`).join('')}</div>
  <div class="card"><h3>Mensaje de WhatsApp</h3><p class="k">Variables: {nombre} {monto} {interes} {total} {primer} {ultimo} {cuotas} {valor} {pagadas} {restantes} {saldo}</p><textarea id="wat" rows="10">${esc(cfg('wat')||DEFWA)}</textarea><div class="grid"><button onclick="saveWat()">Guardar</button><button class="s" onclick="resetWat()">Restablecer</button></div></div>
@@ -174,18 +177,18 @@ async function addFer(){if(!g('ff'))return;await DB.put('feriados',{fecha:g('ff'
 async function delFer(id){await DB.run('feriados','readwrite',o=>o.delete(id));refresh()}
 function tema(t){localStorage.setItem('t',t);document.documentElement.dataset.t=t}
 async function exportar(){await DB.put('config',{id:'ultimoBackup',v:new Date().toISOString()});await aud('Backup realizado','sistema',0);await load();
- const d={version:1,fecha:new Date().toISOString()};S.forEach(s=>d[s]=C[s].filter(x=>!(s==='config'&&x.id==='pin')));
+ const d={version:1,fecha:new Date().toISOString()};S.forEach(s=>d[s]=C[s].filter(x=>!(s==='config'&&['pin','bio','gcid'].includes(x.id))));
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));a.download='crzprest-backup-'+hoy()+'.json';a.click();render()}
 async function importar(f){if(!f||!confirm('Esta operación reemplazará los datos actuales. ¿Continuar?'))return;
- try{const d=JSON.parse(await f.text());const pin=C.config.find(x=>x.id==='pin');
+ try{const d=JSON.parse(await f.text());const keep=C.config.filter(x=>['pin','bio','gcid'].includes(x.id));
  for(const s of S){await DB.clear(s);for(const r of d[s]||[])await DB.put(s,r)}
- if(pin)await DB.put('config',pin);await aud('Restauración realizada','sistema',0);await refresh();alert('Copia restaurada')}catch(e){alert('Archivo inválido')}}
+ for(const k of keep)await DB.put('config',k);await aud('Restauración realizada','sistema',0);await refresh();alert('Copia restaurada')}catch(e){alert('Archivo inválido')}}
 // ===== PIN (hash SHA-256 con sal) y bloqueo =====
 const hash=async(p,s)=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s+p)))].map(b=>b.toString(16).padStart(2,'0')).join('');
 function setPin(){modal(`<h3>PIN</h3><input id="p1" type="password" inputmode="numeric" placeholder="6 a 8 dígitos"><input id="p2" type="password" inputmode="numeric" placeholder="Repetir PIN"><button class="w" onclick="savePin()">Guardar</button>`)}
 async function savePin(){const a=g('p1');if(!/^\d{6,8}$/.test(a))return alert('El PIN debe tener 6 a 8 dígitos');if(a!==g('p2'))return alert('No coinciden');
  const s=crypto.randomUUID();await DB.put('config',{id:'pin',v:{s,h:await hash(a,s)}});close();refresh()}
-function lock(){const p=cfg('pin');if(!p)return;$('#m').style.display='flex';$('#m').innerHTML=`<div style="text-align:center"><h3>🔒 CRz Prest</h3><input id="lp" type="password" inputmode="numeric" placeholder="PIN"><button class="w" onclick="unlock()">Entrar</button></div>`;$('#m').onclick=null}
+function lock(){const p=cfg('pin');if(!p)return;$('#m').style.display='flex';$('#m').innerHTML=`<div style="text-align:center"><h3>🔒 Control Prest by CR</h3><input id="lp" type="password" inputmode="numeric" placeholder="PIN"><button class="w" onclick="unlock()">Entrar</button>${cfg('bio')?'<button class="w s" style="margin-top:8px" onclick="bioUnlock()">👆 Usar huella</button>':''}</div>`;$('#m').onclick=null;if(cfg('bio'))setTimeout(bioUnlock,300)}
 async function unlock(){const p=cfg('pin');if(await hash(g('lp'),p.s)===p.h){close();$('#m').onclick=e=>{if(e.target.id==='m')close()}}else{$('#lp').value='';$('#lp').placeholder='PIN incorrecto'}}
 
 // ===== Botón + rápido =====
@@ -203,8 +206,8 @@ function dia(k){const l=C.cuotas.filter(c=>c.estado==='pendiente'&&c.fechaVencim
 // ===== Recibos =====
 function setNom(){const n=prompt('Nombre del prestamista (aparece en recibos):',cfg('nombre')||'');if(n!==null)DB.put('config',{id:'nombre',v:n}).then(refresh)}
 function recibo(id){const c=C.cuotas.find(x=>x.id===id),p=C.prestamos.find(x=>x.id===c.prestamoId),cl=cli(p.clienteId),r=resumen(p),no='R-'+String(id).padStart(6,'0');
- window.RT=`*CRz Prest - Recibo ${no}*\nCliente: ${cl.nombre}\nCI: ${cl.cedula}\nPréstamo #${p.id} - Cuota ${c.numero}/${p.cuotas}\nFecha de pago: ${dmy((c.fechaPago||'').slice(0,10))}\nImporte: ${fmt(c.importe)}\nSaldo pendiente: ${fmt(r.pend)}\nCuotas restantes: ${r.rest}`;
- modal(`<div id="rc" style="text-align:center${cfg('term')?';width:58mm;font-size:11px;margin:auto':''}"><h3>CRz Prest</h3><p class="k">${esc(cfg('nombre')||'')}</p><div class="card" style="text-align:left">Comprobante: <b>${no}</b><br>Cliente: ${esc(cl.nombre)}<br>Cédula: ${esc(cl.cedula)}<br>Préstamo #${p.id} · Cuota ${c.numero}/${p.cuotas}<br>Fecha de pago: ${dmy((c.fechaPago||'').slice(0,10))}<br>Método: ${esc(c.metodoPago)}<br><b>Importe: ${fmt(c.importe)}</b><br>Saldo pendiente: ${fmt(r.pend)}<br>Cuotas restantes: ${r.rest}</div></div>
+ window.RT=`*Control Prest by CR - Recibo ${no}*\nCliente: ${cl.nombre}\nCI: ${cl.cedula}\nPréstamo #${p.id} - Cuota ${c.numero}/${p.cuotas}\nFecha de pago: ${dmy((c.fechaPago||'').slice(0,10))}\nImporte: ${fmt(c.importe)}\nSaldo pendiente: ${fmt(r.pend)}\nCuotas restantes: ${r.rest}`;
+ modal(`<div id="rc" style="text-align:center${cfg('term')?';width:58mm;font-size:11px;margin:auto':''}"><h3>Control Prest by CR</h3><p class="k">${esc(cfg('nombre')||'')}</p><div class="card" style="text-align:left">Comprobante: <b>${no}</b><br>Cliente: ${esc(cl.nombre)}<br>Cédula: ${esc(cl.cedula)}<br>Préstamo #${p.id} · Cuota ${c.numero}/${p.cuotas}<br>Fecha de pago: ${dmy((c.fechaPago||'').slice(0,10))}<br>Método: ${esc(c.metodoPago)}<br><b>Importe: ${fmt(c.importe)}</b><br>Saldo pendiente: ${fmt(r.pend)}<br>Cuotas restantes: ${r.rest}</div></div>
  <button class="w" onclick="window.print()">Imprimir / Guardar PDF</button><button class="w s" style="margin-top:8px" onclick="wa('${esc(cl.whatsapp||cl.telefono)}',window.RT)">Compartir por WhatsApp</button><button class="w s" style="margin-top:8px" onclick="close()">Cerrar</button>`)}
 // ===== Reportes =====
 function vRep(){const d=window.RD||hoy().slice(0,8)+'01',h=window.RH||hoy(),en=x=>x>=d&&x<=h;
@@ -231,11 +234,37 @@ const resetWat=async()=>{await DB.run('config','readwrite',o=>o.delete('wat'));r
 async function tog(l){const h=[...(cfg('hid')||[])],i=h.indexOf(l);i<0?h.push(l):h.splice(i,1);await DB.put('config',{id:'hid',v:h});refresh()}
 const tglTerm=async()=>{await DB.put('config',{id:'term',v:!cfg('term')});refresh()};
 function pdfPrest(id){const p=C.prestamos.find(x=>x.id===id),c=cli(p.clienteId),r=resumen(p);
- modal(`<div id="rc"><h3 style="text-align:center">CRz Prest — Préstamo #${id}</h3><p class="k">${esc(cfg('nombre')||'')}</p><p>Cliente: <b>${esc(c.nombre)}</b> · CI ${esc(c.cedula)} · ${esc(c.telefono)}<br>Capital ${fmt(p.monto)} · Interés ${p.interes}% (${fmt(p.montoInteres)}) · Total ${fmt(p.total)}<br>${p.cuotas} cuotas ${p.modalidad}s de ${fmt(p.importeCuota)} · ${dmy(p.primerVencimiento)} → ${dmy(p.ultimoVencimiento)}<br>Estado: <b>${p.estado}</b> · Pagado ${fmt(r.pagado)} · Saldo ${fmt(r.pend)}</p>
+ modal(`<div id="rc"><h3 style="text-align:center">Control Prest by CR — Préstamo #${id}</h3><p class="k">${esc(cfg('nombre')||'')}</p><p>Cliente: <b>${esc(c.nombre)}</b> · CI ${esc(c.cedula)} · ${esc(c.telefono)}<br>Capital ${fmt(p.monto)} · Interés ${p.interes}% (${fmt(p.montoInteres)}) · Total ${fmt(p.total)}<br>${p.cuotas} cuotas ${p.modalidad}s de ${fmt(p.importeCuota)} · ${dmy(p.primerVencimiento)} → ${dmy(p.ultimoVencimiento)}<br>Estado: <b>${p.estado}</b> · Pagado ${fmt(r.pagado)} · Saldo ${fmt(r.pend)}</p>
  <table style="width:100%;font-size:13px;border-collapse:collapse"><tr><th align="left">Nº</th><th align="left">Vence</th><th align="right">Importe</th><th align="left">Estado</th><th align="left">Pago</th></tr>${cuP(p).map(x=>`<tr style="border-top:1px solid var(--b)"><td>${x.numero}</td><td>${dmy(x.fechaVencimiento)}</td><td align="right">${fmt(x.importe)}</td><td>${venc(x)?'vencida':x.estado}</td><td>${x.fechaPago?dmy(x.fechaPago.slice(0,10))+' '+esc(x.metodoPago):''}</td></tr>`).join('')}</table></div>
  <button class="w" style="margin-top:10px" onclick="window.print()">Imprimir / Guardar PDF</button><button class="w s" style="margin-top:8px" onclick="det(${id})">Volver</button>`)}
+
+// ===== Respaldo en la nube =====
+const bjson=()=>{const d={version:1,fecha:new Date().toISOString()};S.forEach(s=>d[s]=C[s].filter(x=>!(s==='config'&&['pin','bio','gcid'].includes(x.id))));return JSON.stringify(d)};
+const bk=()=>{if(!C.clientes.length)return'';const l=[cfg('ultimoBackup'),cfg('ultimoNube')].filter(Boolean).sort().pop();return !l||l.slice(0,10)<hoy()?'<div class="card" style="border-color:var(--o)">⚠️ Aún no hiciste la copia de hoy. <button class="sm" onclick="go(\'mas\')">Respaldar</button></div>':''};
+function gtoken(inter){return new Promise((res,rej)=>{const go=()=>google.accounts.oauth2.initTokenClient({client_id:cfg('gcid'),scope:'https://www.googleapis.com/auth/drive.file',prompt:inter?'consent':'none',callback:r=>r.access_token?res(r.access_token):rej(r),error_callback:rej}).requestAccessToken();
+ if(window.google&&google.accounts)return go();const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=go;s.onerror=()=>rej('sin conexión');document.head.appendChild(s)})}
+async function driveBackup(inter){if(!cfg('gcid'))return;
+ try{const t=await gtoken(inter),n='crzprest-backup-'+hoy()+'.json',H={Authorization:'Bearer '+t},body=bjson();
+ const l=await(await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(`name='${n}' and trashed=false`),{headers:H})).json();let r;
+ if(l.files&&l.files[0])r=await fetch('https://www.googleapis.com/upload/drive/v3/files/'+l.files[0].id+'?uploadType=media',{method:'PATCH',headers:{...H,'Content-Type':'application/json'},body});
+ else{const f=new FormData();f.append('metadata',new Blob([JSON.stringify({name:n,mimeType:'application/json'})],{type:'application/json'}));f.append('file',new Blob([body],{type:'application/json'}));r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{method:'POST',headers:H,body:f})}
+ if(!r.ok)throw 0;await DB.put('config',{id:'ultimoNube',v:new Date().toISOString()});await aud('Backup realizado','nube',0,{destino:'drive'});await load();render();if(inter)alert('Copia guardada en Google Drive')}
+ catch(e){if(inter)alert('No se pudo respaldar en Drive. Revisá el Client ID, la conexión y que tu cuenta esté como usuario de prueba.')}}
+async function saveG(){await DB.put('config',{id:'gcid',v:g('gcid').trim()});await load();driveBackup(true)}
+const tglAuto=async()=>{await DB.put('config',{id:'auto',v:!cfg('auto')});refresh()};
+async function autoBackup(){if(!cfg('auto')||!cfg('gcid')||!navigator.onLine)return;const l=cfg('ultimoNube');if(l&&l.slice(0,10)===hoy())return;driveBackup(false)}
+async function compartirBackup(){const n='crzprest-backup-'+hoy()+'.json',f=new File([bjson()],n,{type:'application/json'});
+ if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:n});await DB.put('config',{id:'ultimoBackup',v:new Date().toISOString()});await load();render()}catch(e){}}else exportar()}
+// ===== Biometría (WebAuthn) =====
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b))),ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const openApp=()=>{close();$('#m').onclick=e=>{if(e.target.id==='m')close()}};
+async function bioOn(){if(!cfg('pin'))return alert('Primero creá un PIN');if(!window.PublicKeyCredential)return alert('Este navegador no soporta biometría');
+ try{const c=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:'Control Prest by CR'},user:{id:crypto.getRandomValues(new Uint8Array(16)),name:'usuario',displayName:'Usuario'},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},timeout:60000}});
+ await DB.put('config',{id:'bio',v:b64(c.rawId)});alert('Huella activada');refresh()}catch(e){alert('No se pudo activar la biometría')}}
+async function bioUnlock(){try{await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),allowCredentials:[{type:'public-key',id:ub(cfg('bio'))}],userVerification:'required',timeout:60000}});openApp()}catch(e){}}
+const bioOff=async()=>{await DB.run('config','readwrite',o=>o.delete('bio'));refresh()};
 let idle;const rst=()=>{clearTimeout(idle);idle=setTimeout(lock,120000)};['click','touchstart','keydown'].forEach(e=>addEventListener(e,rst));
 // ===== Inicio =====
 (async()=>{const t=localStorage.getItem('t');if(t)document.documentElement.dataset.t=t;
- await DB.open();await load();render();lock();rst();
+ await DB.open();await load();render();lock();rst();autoBackup();
  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js')})();
