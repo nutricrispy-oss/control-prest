@@ -175,7 +175,7 @@ function vMas(){const fe=[...C.feriados].sort((a,b)=>a.fecha.localeCompare(b.fec
  ${fe.map(f=>`<div class="row"><span>${dmy(f.fecha)} ${esc(f.descripcion)}</span><button class="sm r" onclick="delFer(${f.id})">✕</button></div>`).join('')}</div>`}
 async function addFer(){if(!g('ff'))return;await DB.put('feriados',{fecha:g('ff'),descripcion:g('fd')});refresh()}
 async function delFer(id){await DB.run('feriados','readwrite',o=>o.delete(id));refresh()}
-function tema(t){localStorage.setItem('t',t);document.documentElement.dataset.t=t}
+function tema(t){localStorage.setItem('cp_tema',t);document.documentElement.dataset.t=t}
 async function exportar(){await DB.put('config',{id:'ultimoBackup',v:new Date().toISOString()});await aud('Backup realizado','sistema',0);await load();
  const d={version:1,fecha:new Date().toISOString()};S.forEach(s=>d[s]=C[s].filter(x=>!(s==='config'&&['pin','bio','gcid'].includes(x.id))));
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));a.download='crzprest-backup-'+hoy()+'.json';a.click();render()}
@@ -265,6 +265,6 @@ async function bioUnlock(){try{await navigator.credentials.get({publicKey:{chall
 const bioOff=async()=>{await DB.run('config','readwrite',o=>o.delete('bio'));refresh()};
 let idle;const rst=()=>{clearTimeout(idle);idle=setTimeout(lock,120000)};['click','touchstart','keydown'].forEach(e=>addEventListener(e,rst));
 // ===== Inicio =====
-(async()=>{const t=localStorage.getItem('t');if(t)document.documentElement.dataset.t=t;
+(async()=>{const t=localStorage.getItem('cp_tema');if(t)document.documentElement.dataset.t=t;
  await DB.open();await load();render();lock();rst();autoBackup();
  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js')})();
